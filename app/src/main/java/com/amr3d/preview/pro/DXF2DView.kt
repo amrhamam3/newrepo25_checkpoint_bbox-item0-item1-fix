@@ -180,6 +180,24 @@ class DXF2DView @JvmOverloads constructor(
     /** بيرجّع أسماء كل الطبقات الموجودة في الملف الحالي، بترتيب ظهورها. فاضية لو مفيش موديل محمّل. */
     fun getLayers(): List<String> = model?.layers ?: emptyList()
 
+    /** true لو المفتاح ده مجموعة ألوان (مش اسم طبقة CAD حقيقي) — شوف DXFParser.COLOR_GROUP_PREFIX */
+    fun isColorGroup(groupKey: String): Boolean = groupKey.startsWith(DXFParser.COLOR_GROUP_PREFIX)
+
+    /** رقم الترتيب لو المفتاح مجموعة ألوان (مستخدم في تسمية "لون 1"، "لون 2" ...) */
+    fun colorGroupIndex(groupKey: String): Int =
+        groupKey.removePrefix(DXFParser.COLOR_GROUP_PREFIX).toIntOrNull() ?: 0
+
+    /** بيرجّع لون تمثيلي للمفتاح (طبقة أو مجموعة ألوان) عشان يتعرض كسواتش جنب اسمه
+     * في قائمة الطبقات — null لو مفيش موديل أو المفتاح مش موجود */
+    fun colorForGroup(groupKey: String): Int? {
+        val m = model ?: return null
+        if (isColorGroup(groupKey)) return m.colorGroupPalette.getOrNull(colorGroupIndex(groupKey))
+        m.lines.firstOrNull { it.layer == groupKey }?.let { return it.color }
+        m.arcs.firstOrNull { it.layer == groupKey }?.let { return it.color }
+        m.circles.firstOrNull { it.layer == groupKey }?.let { return it.color }
+        return null
+    }
+
     /** true لو الطبقة ظاهرة حاليًا (أو مش معروفة أصلًا — بنعتبرها ظاهرة افتراضيًا) */
     fun isLayerVisible(layer: String): Boolean = layer !in hiddenLayers
 
