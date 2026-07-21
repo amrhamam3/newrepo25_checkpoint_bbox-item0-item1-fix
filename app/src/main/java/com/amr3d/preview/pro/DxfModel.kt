@@ -18,8 +18,11 @@ data class DxfModel(
     val minX: Float, val minY: Float,
     val maxX: Float, val maxY: Float,
     val entityCount: Int,
-    /** أسماء كل الطبقات (Layers) الموجودة في الملف، بترتيب ظهورها أول مرة */
-    val layers: List<String> = listOf("0")
+    /** أسماء/مفاتيح كل الطبقات (أو مجموعات الألوان) الموجودة في الملف، بترتيب ظهورها أول مرة */
+    val layers: List<String> = listOf("0"),
+    /** لو التجميع حصل حسب اللون بدل اسم الطبقة، هنا الألوان الفعلية بنفس ترتيب layers
+     * (فاضية لو التجميع حصل حسب اسم الطبقة الحقيقي) */
+    val colorGroupPalette: List<Int> = emptyList()
 )
 
 /** جدول ألوان الأوتوكاد القياسي (AutoCAD Color Index) — أهم الألوان المستخدمة فعلياً */
