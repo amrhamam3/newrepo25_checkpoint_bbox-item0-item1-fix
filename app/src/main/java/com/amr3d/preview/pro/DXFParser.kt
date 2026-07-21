@@ -10,6 +10,12 @@ import android.net.Uri
  */
 object DXFParser {
 
+    /** بادئة داخلية بنستخدمها لمّا نجمّع العناصر حسب اللون بدل اسم الطبقة (شوف
+     * التعليق قبل بناء DxfModel في الآخر). القيمة دي مش مفروض تتعرض للمستخدم زي
+     * ما هي — الشاشات اللي بتعرضها (DXF2DView / ViewerFragment) بتتعرف عليها
+     * وتحوّلها للون فعلي + تسمية ودّية زي "🎨 لون 2". */
+    const val COLOR_GROUP_PREFIX = "\u0007#COLORGROUP#"
+
     private data class DxfPair(val code: Int, val value: String)
 
     fun parse(context: Context, uri: Uri): DxfModel {
@@ -245,16 +251,52 @@ object DXFParser {
         val totalEntities = lines.size + arcs.size + circles.size
         if (totalEntities == 0) throw STLParseException(context.getString(R.string.error_dxf_no_displayable))
 
+        // ══ تجميع العناصر لأغراض قائمة "الطبقات" في الواجهة ══
+        // لو الملف فيه أكتر من طبقة CAD حقيقية (code 8) بالفعل، بنستخدمها زي ما هي.
+        // لكن كتير من ملفات الـ CNC (خصوصًا الصادرة من 3ds Max) بتحط كل حاجة على
+        // طبقة واحدة ("0") وتفرّق بين أنواع التشغيل (قص/حفر/نقش) بالألوان بس — في
+        // الحالة دي مفيش أي فايدة من قائمة طبقات فيها عنصر واحد، فبنجمّع العناصر
+        // حسب اللون الفعلي بدل اسم الطبقة عشان الإخفاء/الإظهار يبقى مفيد فعلًا.
+        val distinctColors = LinkedHashSet<Int>()
+        for (l in lines) distinctColors.add(l.color)
+        for (a in arcs) distinctColors.add(a.color)
+        for (c in circles) distinctColors.add(c.color)
+
+        val finalLines: List<DxfLine>
+        val finalArcs: List<DxfArc>
+        val finalCircles: List<DxfCircle>
+        val finalLayers: List<String>
+        val colorPalette: List<Int>
+
+        if (layerOrder.size > 1) {
+            finalLines = lines; finalArcs = arcs; finalCircles = circles
+            finalLayers = layerOrder.toList()
+            colorPalette = emptyList()
+        } else if (distinctColors.size > 1) {
+            val colorOrder = distinctColors.toList()
+            fun keyFor(color: Int) = COLOR_GROUP_PREFIX + colorOrder.indexOf(color)
+            finalLines = lines.map { it.copy(layer = keyFor(it.color)) }
+            finalArcs = arcs.map { it.copy(layer = keyFor(it.color)) }
+            finalCircles = circles.map { it.copy(layer = keyFor(it.color)) }
+            finalLayers = colorOrder.indices.map { COLOR_GROUP_PREFIX + it }
+            colorPalette = colorOrder
+        } else {
+            finalLines = lines; finalArcs = arcs; finalCircles = circles
+            finalLayers = layerOrder.toList().ifEmpty { listOf("0") }
+            colorPalette = emptyList()
+        }
+
         return DxfModel(
-            lines = lines,
-            arcs = arcs,
-            circles = circles,
+            lines = finalLines,
+            arcs = finalArcs,
+            circles = finalCircles,
             minX = if (minX == Float.MAX_VALUE) 0f else minX,
             minY = if (minY == Float.MAX_VALUE) 0f else minY,
             maxX = if (maxX == -Float.MAX_VALUE) 1f else maxX,
             maxY = if (maxY == -Float.MAX_VALUE) 1f else maxY,
             entityCount = totalEntities,
-            layers = if (layerOrder.isEmpty()) listOf("0") else layerOrder.toList()
+            layers = finalLayers,
+            colorGroupPalette = colorPalette
         )
     }
 }
