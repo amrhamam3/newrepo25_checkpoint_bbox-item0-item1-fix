@@ -690,12 +690,25 @@ class ViewerFragment : Fragment() {
         }
 
         for (layerName in layers) {
+            val groupColor = dxf2DView.colorForGroup(layerName) ?: 0xFFFF8A1E.toInt()
+            val label = if (dxf2DView.isColorGroup(layerName)) {
+                getString(R.string.layer_color_group, dxf2DView.colorGroupIndex(layerName) + 1)
+            } else {
+                layerName
+            }
+            val swatch = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.OVAL
+                setColor(groupColor)
+                setSize(36, 36)
+            }
             val row = CheckBox(ctx).apply {
-                text = layerName
+                text = label
                 isChecked = dxf2DView.isLayerVisible(layerName)
                 setTextColor(0xFFF2F3F5.toInt())
                 setPadding(8, 20, 8, 20)
                 textSize = 15f
+                compoundDrawablePadding = 20
+                setCompoundDrawablesWithIntrinsicBounds(swatch, null, null, null)
                 setOnCheckedChangeListener { _, checked ->
                     dxf2DView.setLayerVisible(layerName, checked)
                 }
